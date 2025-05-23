@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/rinnosuke/platformio/esp32_ros_ws/scripts
+set -gx VIRTUAL_ENV /home/rinnosuke/platformio/inv_pendulum/scripts
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

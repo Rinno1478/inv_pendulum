@@ -20,9 +20,13 @@
 
 #if (MICRO_ROS_TRANSPORT_ARDUINO_WIFI==1)
 // Wifi関連
-char ssid[] = "Buffalo-G-2E78";
-char psk[] = "e477ttud6vekh";
-IPAddress agent_ip(192, 168, 11, 15);
+// char ssid[] = "Buffalo-G-2E78";
+// char psk[] = "e477ttud6vekh";
+// char ssid[] = "paplica-G";
+// char psk[] = "hjww-q238-4hW!w";
+char ssid[] = "keje";
+char psk[] = "totakkekawaii";
+IPAddress agent_ip(192, 168, 1, 10);
 size_t agent_port = 8888;
 #endif
 
@@ -147,7 +151,7 @@ bool is_button_pressed = false;
 float angle_yaw = 0.0f;
 float last_imu_yaw = 0.0f;
 
-float K[3] = { 1066.09 , 166.259 , 12.9099 }; // lqrで求めたゲイン
+float K[3] = {1070.19 , 167.865 , 12.9099}; // lqrで求めたゲイン
 
 void quaternionToEuler(Quat q, Euler *euler) {
     euler->x = atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y));
@@ -314,12 +318,12 @@ void control() {
     // float u2 = K[0] * (angle - balance_angle) + K[1] * omega + K[2] * (stepper2.speed() * 2 * PI / SPR - robot_cmd_vel.linear.x / WHEEL_RADIUS);
 
     float u_linear = K[0] * (angle - balance_angle) + K[1] * omega + K[2] * (linear_speed - robot_cmd_vel.linear.x / WHEEL_RADIUS);
-    float u_angular = std::min(PI, std::max(-PI, (rotation_omega - robot_cmd_vel.angular.z) * WHEEL_DISTANCE / WHEEL_RADIUS));
+    float u_angular = 2.0f * (robot_cmd_vel.angular.z - rotation_omega) * WHEEL_DISTANCE / WHEEL_RADIUS;
     unsigned long micro_dt = (micros() - last_control_update_time);
 
     // ステッピングモータの速度制御
-    wheel_step_speed[0] = (u_linear + u_angular / 2) * micro_dt * 0.000001 * SPR / 2 / PI + stepper1.speed(); // rad/s -> steps/s
-    wheel_step_speed[1] = (u_linear - u_angular / 2) * micro_dt * 0.000001 * SPR / 2 / PI + stepper2.speed();
+    wheel_step_speed[0] = (u_linear - u_angular / 2) * micro_dt * 0.000001 * SPR / 2 / PI + stepper1.speed(); // rad/s -> steps/s
+    wheel_step_speed[1] = (u_linear + u_angular / 2) * micro_dt * 0.000001 * SPR / 2 / PI + stepper2.speed();
 
     last_control_update_time = micros();
 
@@ -418,8 +422,11 @@ void setup() {
     stepper2.setSpeed(0);
     
     // micro-ROSのWiFi設定
-   	set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
-    // set_microros_serial_transports(Serial);
+    #if (MICRO_ROS_TRANSPORT_ARDUINO_WIFI==1)
+    set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
+    #elif (MICRO_ROS_TRANSPORT_ARDUINO_SERIAL==1)
+    set_microros_serial_transports(Serial);
+    #endif
 
     // WiFi接続待ち
     delay(2000);
@@ -470,7 +477,18 @@ void setup() {
 
     // スタートボタン
     int cnt = 0;
+    int LED_cnt = 0;
+    digitalWrite(PIN_START_LED, HIGH);
     while (1) {
+        LED_cnt++;
+        if (LED_cnt < 50000) {
+            digitalWrite(PIN_START_LED, LOW);
+        } else if (LED_cnt < 100000) {
+            digitalWrite(PIN_START_LED, HIGH);
+        } else {
+            LED_cnt = 0;
+        }
+
         if (digitalRead(PIN_START_BUTTON) == LOW) {
             cnt++;
             digitalWrite(PIN_START_LED, HIGH);
@@ -479,10 +497,10 @@ void setup() {
             cnt = 0;
             digitalWrite(PIN_START_LED, LOW);
         }
-        if (cnt > 5) {
+        if (cnt > 3000) {
             break;
         }
-        delay(5);
+        delayMicroseconds(10);
     }
 
     // デュアルコアでの動作
